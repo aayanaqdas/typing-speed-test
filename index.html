@@ -28,7 +28,28 @@
           <p class="stats">Accuracy: <span>100%</span></p>
           <p class="stats">Time: <span>0:59</span></p>
         </div>
+
+        <div class="dropdown-container">
+          <div class="dropdown">
+            <button class="dropdown-btn">Easy</button>
+            <div class="dropdown-content">
+              <label><input type="radio" name="difficulty" value="easy" checked />Easy</label>
+              <label><input type="radio" name="difficulty" value="medium" />Medium</label>
+              <label><input type="radio" name="difficulty" value="hard" />Hard</label>
+            </div>
+          </div>
+
+          <div class="dropdown">
+            <button class="dropdown-btn">Timed (60s)</button>
+            <div class="dropdown-content">
+              <label><input type="radio" name="mode" value="timed" checked />Timed (60s)</label>
+              <label><input type="radio" name="mode" value="passage" />Passage</label>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
+
+    <script src="./src/main.js"></script>
   </body>
 </html>
