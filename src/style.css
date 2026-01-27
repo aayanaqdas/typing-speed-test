@@ -239,13 +239,37 @@ main {
   outline: none;
 }
 
+#caret {
+  position: absolute;
+  background-color: var(--yellow-400);
+  z-index: 3;
+  width: 2px;
+  height: clamp(1.25rem, 4vw, 2rem);
+  margin-top: 4px;
 
-.correct{
+  transition:
+    left 0.1s ease,
+    top 0.1s ease;
+
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.correct {
   color: var(--green-500);
   border-bottom: 1px solid var(--green-500);
 }
 
-.incorrect{
+.incorrect {
   color: var(--red-500);
   border-bottom: 1px solid var(--red-500);
 }

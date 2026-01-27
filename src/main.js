@@ -1,9 +1,11 @@
 const dropDownBtns = document.querySelectorAll(".dropdown-btn");
+const restartBtn = document.getElementById("restart-btn");
 const typingInput = document.getElementById("typing-input");
 const quoteDisplay = document.getElementById("quote-display");
+const caretEl = document.getElementById("caret");
 const quoteText =
   "The sun rose over the quiet town. Birds sang in the trees as people woke up and started their day. It was going to be a warm and sunny morning.";
-let quoteletters = null;
+let quoteSpans = null;
 dropDownBtns.forEach((btn) => {
   const dropDownContent = btn.nextElementSibling;
   const dropDownInputs = dropDownContent.querySelectorAll(`input[type="radio"]`);
@@ -20,31 +22,30 @@ dropDownBtns.forEach((btn) => {
       }
     });
   });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".dropdown")) {
-      document.querySelectorAll(".dropdown-content").forEach((content) => {
-        content.classList.remove("show");
-      });
-    }
-  });
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".dropdown")) {
+    document.querySelectorAll(".dropdown-content").forEach((content) => {
+      content.classList.remove("show");
+    });
+  }
 });
 
 function renderQuote() {
   quoteDisplay.innerHTML = "";
-
+  typingInput.focus();
   quoteText.split("").forEach((letter) => {
     const letterSpan = document.createElement("span");
     letterSpan.innerText = letter;
     quoteDisplay.appendChild(letterSpan);
   });
+  quoteSpans = quoteDisplay.querySelectorAll("span");
+  moveCaret(0);
 }
 
-typingInput.addEventListener("input", () => {
-  const quoteletters = quoteDisplay.querySelectorAll("span");
+function checkTypedLetter() {
   const inputLetters = typingInput.value.split("");
-
-  quoteletters.forEach((span, index) => {
+  quoteSpans.forEach((span, index) => {
     const letter = inputLetters[index];
 
     if (letter == null) {
@@ -57,7 +58,40 @@ typingInput.addEventListener("input", () => {
       span.classList.remove("correct");
     }
   });
-  console.log(typingInput.value);
+  moveCaret(inputLetters.length);
+}
+
+function moveCaret(index = 0) {
+  const target = quoteSpans[index];
+  if (target) {
+    caretEl.style.top = target.offsetTop + "px";
+    caretEl.style.left = target.offsetLeft + "px";
+  } else if (index === quoteSpans.length) {
+    const lastSpan = quoteSpans[quoteSpans.length - 1];
+    caretEl.style.top = lastSpan.offsetTop + "px";
+    caretEl.style.left = lastSpan.offsetLeft + lastSpan.offsetWidth + "px";
+  }
+}
+
+function restart() {
+  typingInput.value = "";
+  renderQuote();
+}
+
+typingInput.addEventListener("keydown", (e) => {
+  const blockedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+  if (blockedKeys.includes(e.code)) {
+    e.preventDefault();
+  }
 });
+
+//Keeps cursor at the end
+typingInput.addEventListener("click", () => {
+  typingInput.setSelectionRange(typingInput.value.length, typingInput.value.length);
+});
+
+typingInput.addEventListener("input", checkTypedLetter);
+window.addEventListener("resize", checkTypedLetter);
+restartBtn.addEventListener("click", restart);
 
 renderQuote();
