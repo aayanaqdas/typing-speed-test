@@ -3,35 +3,31 @@ const restartBtn = document.getElementById("restart-btn");
 const typingInput = document.getElementById("typing-input");
 const quoteDisplay = document.getElementById("quote-display");
 const caretEl = document.getElementById("caret");
-const quoteText =
-  "The sun rose over the quiet town. Birds sang in the trees as people woke up and started their day. It was going to be a warm and sunny morning.";
 let quoteSpans = null;
-dropDownBtns.forEach((btn) => {
-  const dropDownContent = btn.nextElementSibling;
-  const dropDownInputs = dropDownContent.querySelectorAll(`input[type="radio"]`);
+const settingInputs = document.querySelectorAll(`input[name="difficulty"], input[name="mode"]`);
+let quotesData = null;
+let settings = {
+  difficulty: "easy",
+  mode: "timed",
+};
 
-  btn.addEventListener("click", () => {
-    dropDownContent.classList.toggle("show");
-  });
-
-  dropDownInputs.forEach((input) => {
-    input.addEventListener("change", () => {
-      if (input.checked) {
-        dropDownContent.classList.remove("show");
-        btn.textContent = input.nextSibling.textContent.trim();
-      }
-    });
-  });
-});
-document.addEventListener("click", (e) => {
-  if (!e.target.closest(".dropdown")) {
-    document.querySelectorAll(".dropdown-content").forEach((content) => {
-      content.classList.remove("show");
-    });
+async function getQuote() {
+  try {
+    if (!quotesData) {
+      const response = await fetch("./data.json");
+      quotesData = await response.json();
+    }
+    const difficulty = quotesData[settings.difficulty];
+    const randomIndex = Math.floor(Math.random() * difficulty.length);
+    console.log(randomIndex);
+    const quoteText = difficulty[randomIndex].text;
+    renderQuote(quoteText);
+  } catch (error) {
+    console.log(error);
   }
-});
+}
 
-function renderQuote() {
+function renderQuote(quoteText) {
   quoteDisplay.innerHTML = "";
   typingInput.focus();
   quoteText.split("").forEach((letter) => {
@@ -75,9 +71,42 @@ function moveCaret(index = 0) {
 
 function restart() {
   typingInput.value = "";
-  renderQuote();
+  getQuote();
 }
 
+dropDownBtns.forEach((btn) => {
+  const dropDownContent = btn.nextElementSibling;
+  const dropDownInputs = dropDownContent.querySelectorAll(`input[type="radio"]`);
+
+  btn.addEventListener("click", () => {
+    dropDownContent.classList.toggle("show");
+  });
+
+  dropDownInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        dropDownContent.classList.remove("show");
+        btn.textContent = input.nextSibling.textContent.trim();
+      }
+    });
+  });
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".dropdown")) {
+    document.querySelectorAll(".dropdown-content").forEach((content) => {
+      content.classList.remove("show");
+    });
+  }
+});
+
+settingInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    if (input.checked) {
+      settings[input.name] = input.value;
+    }
+  });
+});
+console.log("default", settings);
 typingInput.addEventListener("keydown", (e) => {
   const blockedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
   if (blockedKeys.includes(e.code)) {
@@ -94,4 +123,4 @@ typingInput.addEventListener("input", checkTypedLetter);
 window.addEventListener("resize", checkTypedLetter);
 restartBtn.addEventListener("click", restart);
 
-renderQuote();
+getQuote();

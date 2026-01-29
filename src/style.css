@@ -224,6 +224,7 @@ main {
   width: 100%;
   z-index: 1;
   word-wrap: break-word;
+  text-align: center;
   color: var(--neutral-500);
 }
 
