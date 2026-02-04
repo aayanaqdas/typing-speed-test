@@ -76,10 +76,11 @@ function checkTypedLetter() {
     }
   });
   currentIndex = inputLetters.length;
+
   if (currentIndex >= quoteText.length) {
     endTest();
   }
-  console.log("correct: " + correctChars, "incorrect: " + incorrectChars);
+
   moveCaret();
 }
 
@@ -87,11 +88,13 @@ function moveCaret() {
   const target = quoteSpans[currentIndex];
 
   if (target) {
-    caretEl.style.top = target.offsetTop + "px";
+    scrollLines(target);
+    caretEl.style.top = target.offsetTop - quoteDisplay.scrollTop + "px";
     caretEl.style.left = target.offsetLeft + "px";
   } else if (currentIndex === quoteSpans.length) {
     const lastSpan = quoteSpans[quoteSpans.length - 1];
-    caretEl.style.top = lastSpan.offsetTop + "px";
+    scrollLines(lastSpan);
+    caretEl.style.top = lastSpan.offsetTop - quoteDisplay.scrollTop + "px";
     caretEl.style.left = lastSpan.offsetLeft + lastSpan.offsetWidth + "px";
   }
 }
@@ -113,6 +116,8 @@ function reset() {
   wpmEl.textContent = "0";
   accuracyEl.textContent = "100%";
 
+  quoteDisplay.scrollTop = 0;
+
   getQuote();
 }
 
@@ -125,8 +130,6 @@ function startTest() {
   checkTypedLetter();
 
   if (settings.mode === "timed") {
-    timeEl.innerText = timeLeft;
-
     timer = setInterval(() => {
       timeLeft--;
       timeElapsed++;
@@ -178,6 +181,17 @@ function updateStats() {
     wpmEl.innerText = wpm;
   } else {
     wpmEl.innerText = 0;
+  }
+}
+
+function scrollLines(activeSpan) {
+  const relativeTop = activeSpan.offsetTop;
+  const lineHeight = parseFloat(getComputedStyle(quoteDisplay).lineHeight);
+  const currentLine = Math.floor(relativeTop / lineHeight);
+
+  if (currentLine >= 2) {
+    const scrollAmount = (currentLine - 1) * lineHeight;
+    quoteDisplay.scrollTop = scrollAmount;
   }
 }
 

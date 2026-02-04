@@ -209,7 +209,8 @@ main {
 
 #typing-area {
   position: relative;
-  max-height: clamp(20rem, 50vh, 26.25rem);
+  /* max-height: clamp(20rem, 50vh, 26.25rem); */
+  max-height: 170px;
   width: 100%;
   padding: clamp(1rem, 3vw, 2rem) 0;
   border-top: 1px solid var(--neutral-800);
@@ -217,15 +218,20 @@ main {
 }
 
 .quote-container {
-  font-size: clamp(1.25rem, 4vw, 2rem);
+  /* font-size: clamp(1.25rem, 4vw, 2rem); */
+  font-size: 2rem;
   font-weight: var(--font-weight-semibold);
   line-height: 1.5;
-  height: auto;
+  letter-spacing: 0.2rem;
+  height: 175px;
   width: 100%;
   z-index: 1;
   word-wrap: break-word;
   text-align: center;
   color: var(--neutral-500);
+  overflow-y: hidden;
+  /* scroll-behavior: smooth; */
+  padding-bottom: 100px;
 }
 
 #typing-input {
@@ -244,8 +250,8 @@ main {
   position: absolute;
   background-color: var(--yellow-400);
   z-index: 3;
-  width: 2px;
-  height: clamp(1.25rem, 4vw, 2rem);
+  width: 3px;
+  height: 2rem;
   margin-top: 4px;
 
   transition:
@@ -267,7 +273,7 @@ main {
 
 .correct {
   color: var(--green-500);
-  border-bottom: 1px solid var(--green-500);
+  /* border-bottom: 1px solid var(--green-500); */
 }
 
 .incorrect {
