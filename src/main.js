@@ -7,6 +7,7 @@ const typingInput = document.getElementById("typing-input");
 const quoteDisplay = document.getElementById("quote-display");
 const caretEl = document.getElementById("caret");
 const settingInputs = document.querySelectorAll(`input[name="difficulty"], input[name="mode"]`);
+const testOverRestartBtn = document.getElementById("test-over-btn");
 
 let settings = {
   difficulty: "easy",
@@ -20,6 +21,7 @@ let currentIndex = 0;
 
 let correctChars = 0;
 let incorrectChars = 0;
+let totalErrors = 0;
 
 let testStarted = false;
 let testFinished = false;
@@ -50,6 +52,7 @@ function renderQuote() {
   quoteText.split("").forEach((letter) => {
     const letterSpan = document.createElement("span");
     letterSpan.innerText = letter;
+    letterSpan.dataset.errorCounted = "false";
     quoteDisplay.appendChild(letterSpan);
   });
   quoteSpans = quoteDisplay.querySelectorAll("span");
@@ -60,7 +63,7 @@ function checkTypedLetter() {
   const inputLetters = typingInput.value.split("");
 
   correctChars = 0;
-  incorrectChars = 0;
+  const currentIncorrect = 0;
   quoteSpans.forEach((span, index) => {
     const letter = inputLetters[index];
     if (letter == null) {
@@ -68,13 +71,21 @@ function checkTypedLetter() {
     } else if (letter === span.innerText) {
       span.classList.add("correct");
       span.classList.remove("incorrect");
-      correctChars++;
+      if (span.dataset.errorCounted !== "true") {
+        correctChars++;
+      }
     } else {
       span.classList.add("incorrect");
       span.classList.remove("correct");
-      incorrectChars++;
+
+      if (span.dataset.errorCounted !== "true") {
+        totalErrors++;
+        span.dataset.errorCounted = "true";
+      }
     }
   });
+
+  incorrectChars = currentIncorrect;
   currentIndex = inputLetters.length;
 
   if (currentIndex >= quoteText.length) {
@@ -108,6 +119,7 @@ function reset() {
   currentIndex = 0;
   correctChars = 0;
   incorrectChars = 0;
+  totalErrors = 0;
   timeLeft = 60;
   timeElapsed = 0;
   timeEl.innerText = settings.mode === "timed" ? "1:00" : "0:00";
@@ -166,7 +178,7 @@ function endTest() {
 }
 
 function updateStats() {
-  const totalTyped = correctChars + incorrectChars;
+  const totalTyped = correctChars + totalErrors;
 
   const accuracy = totalTyped === 0 ? 100 : Math.round((correctChars / totalTyped) * 100);
 
@@ -176,9 +188,11 @@ function updateStats() {
     const timeInMinutes = timeElapsed / 60;
 
     const grossWpm = correctChars / 5 / timeInMinutes;
-    const netWpm = grossWpm - incorrectChars / 5 / timeInMinutes;
+    const netWpm = grossWpm - totalErrors / 5 / timeInMinutes;
     const wpm = Math.max(0, Math.round(netWpm));
     wpmEl.innerText = wpm;
+
+    console.log("Gross WPM: " + grossWpm, "NetWPM: " + netWpm, "WPM: " + wpm);
   } else {
     wpmEl.innerText = 0;
   }
@@ -194,6 +208,14 @@ function scrollLines(activeSpan) {
     quoteDisplay.scrollTop = scrollAmount;
   }
 }
+
+
+testOverRestartBtn.addEventListener("click", () => {
+    const overlay = document.querySelector(".test-over-overlay");
+    reset();
+    overlay.style.display = "none";
+
+})
 
 dropDownBtns.forEach((btn) => {
   const dropDownContent = btn.nextElementSibling;

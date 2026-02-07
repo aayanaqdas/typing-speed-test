@@ -94,8 +94,10 @@ main {
 }
 
 .container {
+  position: relative;
   width: 100%;
   max-width: 90rem;
+  height: 80vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -104,6 +106,7 @@ main {
 
 .stats_dropdown {
   width: 100%;
+  border-bottom: 2px solid var(--neutral-800);
 }
 
 .stats-wrapper {
@@ -196,7 +199,7 @@ main {
 }
 
 .dropdown-content label:not(:last-child) {
-  border-bottom: 1px solid var(--neutral-500);
+  border-bottom: 1px solid var(--neutral-400);
 }
 
 .dropdown-content input[type="radio"] {
@@ -205,6 +208,148 @@ main {
 
 .dropdown-content label:has(input[type="radio"]:checked) {
   background-color: var(--blue-400);
+  border-bottom: none;
+}
+
+.test-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.test-over-overlay {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 9;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--neutral-900);
+}
+
+.test-over-overlay::before {
+  content: url("../assets/images/pattern-star-2.svg");
+  position: absolute;
+  left: clamp(1rem, 5vw, 5rem);
+  top: clamp(5rem, 10vh, 12rem);
+  transform: scale(0.7);
+}
+
+.test-over-overlay::after {
+  content: url("../assets/images/pattern-star-1.svg");
+  position: absolute;
+  right: clamp(1rem, 5vw, 5rem);
+  bottom: 0;
+  transform: scale(0.7);
+}
+
+.test-over-overlay img {
+  width: clamp(3rem, 13vw, 5.5rem);
+  border-radius: 50%;
+  animation: pulse-circles 0.6s ease-out forwards;
+}
+
+@keyframes pulse-circles {
+  0% {
+    box-shadow:
+      0 0 0 0 var(--green-500),
+      0 0 0 0 var(--green-500);
+  }
+  100% {
+    box-shadow:
+      0 0 0 clamp(10px, 2vw, 20px) hsla(140, 63%, 57%, 0.15),
+      0 0 0 clamp(20px, 5vw, 40px) hsla(140, 63%, 57%, 0.08);
+  }
+}
+
+.test-over-text_stats-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3rem;
+}
+
+.test-over-text {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.test-over-text h1 {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  color: var(--neutral-0);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.test-over-text p {
+  font-size: clamp(1rem, 2.5vw, 1rem);
+  color: var(--neutral-400);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.5;
+}
+
+.test-over-stats-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(0.75rem, 2vw, 1rem);
+  width: 100%;
+  max-width: 24rem;
+}
+
+.test-over-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: clamp(0.75rem, 2vw, 1rem);
+  border: 2px solid var(--neutral-800);
+  border-radius: 0.625rem;
+  background-color: transparent;
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+  color: var(--neutral-400);
+}
+
+.test-over-stats span {
+  color: var(--neutral-0);
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+
+.test-over-stats.accuracy-result span {
+  color: var(--red-500);
+}
+
+.test-over-stats.char-result span {
+  color: var(--green-500);
+}
+
+.test-over-btn {
+  background-color: var(--neutral-0);
+  color: var(--neutral-900);
+  padding: clamp(0.875rem, 2vw, 1rem) clamp(1.75rem, 4vw, 2.5rem);
+  font-size: clamp(1rem, 2.5vw, 1.125rem);
+  margin-top: clamp(0.5rem, 2vw, 1rem);
+}
+
+.test-over-btn:hover {
+  background-color: var(--neutral-400);
+}
+
+.test-over-btn::after {
+  content: url("../assets/images/icon-restart.svg");
+  filter: invert(100%);
+  margin-left: 0.5rem;
 }
 
 #typing-area {
@@ -213,7 +358,6 @@ main {
   max-height: 170px;
   width: 100%;
   padding: clamp(1rem, 3vw, 2rem) 0;
-  border-top: 1px solid var(--neutral-800);
   overflow: hidden;
 }
 
@@ -271,6 +415,20 @@ main {
   }
 }
 
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  padding: clamp(0.75rem, 1vw, 1rem) clamp(1.5rem, 3vw, 2rem);
+  border-radius: 0.625rem;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
 .correct {
   color: var(--green-500);
   /* border-bottom: 1px solid var(--green-500); */
@@ -282,34 +440,28 @@ main {
 }
 
 .restart-wrapper {
-  display: flex;
+  /* display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
   padding: clamp(1rem, 2vw, 1.5rem) 0;
   margin-top: clamp(1rem, 3vw, 2rem);
-  border-top: 2px solid var(--neutral-800);
+  border-top: 2px solid var(--neutral-800); */
+
+  padding: clamp(1rem, 2vw, 1.5rem) 0;
+  margin-top: clamp(1rem, 3vw, 2rem);
 }
 
 #restart-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background-color: var(--neutral-800);
+  background-color: var(--neutral-900);
   color: var(--neutral-0);
   border: none;
-  padding: clamp(0.75rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2rem);
-  border-radius: 0.625rem;
-  font-size: clamp(1rem, 2.5vw, 1.25rem);
-  font-weight: var(--font-weight-bold);
   cursor: pointer;
-  transition: background-color 0.2s ease;
 }
 
-#restart-btn:hover {
+/* #restart-btn:hover {
   background-color: var(--neutral-500);
-}
+} */
 
 #restart-btn::after {
   content: url("../assets/images/icon-restart.svg");
@@ -421,8 +573,33 @@ main {
 
   .dropdown-content label:has(input[type="radio"]:checked) {
     background-color: transparent;
-    border-color: var(--blue-400);
+    border: 1px solid var(--blue-400);
     color: var(--blue-400);
+  }
+
+  .test-container {
+    justify-content: center;
+  }
+
+  .test-over-overlay {
+    justify-content: center;
+    gap: clamp(4rem, 7vw, 5rem);
+  }
+
+  .test-over-stats-wrapper {
+    flex-direction: row;
+    max-width: none;
+    gap: clamp(0.75rem, 1.5vw, 1rem);
+    max-width: 55%;
+  }
+
+  .test-over-stats {
+    flex: 1;
+    padding: clamp(0.75rem, 2vw, 1rem);
+  }
+
+  .test-over-stats span {
+    font-size: clamp(1.5rem, 3vw, 2rem);
   }
 }
 

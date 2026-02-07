@@ -54,14 +54,37 @@
           </div>
         </div>
 
-        <div id="typing-area">
-          <div id="caret"></div>
-          <div id="quote-display" class="quote-container"></div>
-          <input type="text" id="typing-input" autofocus autocomplete="off" />
-        </div>
+        <div class="test-container">
+          <div id="typing-area">
+            <div id="caret"></div>
+            <div id="quote-display" class="quote-container"></div>
+            <input type="text" id="typing-input" autofocus autocomplete="off" />
+          </div>
 
-        <div class="restart-wrapper">
-          <button id="restart-btn">Restart Test</button>
+          <div class="restart-wrapper">
+            <button id="restart-btn"></button>
+          </div>
+
+          <div class="test-over-overlay">
+            <img src="./assets/images/icon-completed.svg" alt="completed icon" />
+            <div class="test-over-text_stats-container">
+              <div class="test-over-text">
+                <h1>Test Complete!</h1>
+                <p>Solid run. Keep pushing to beat your high score.</p>
+              </div>
+
+              <div class="test-over-stats-wrapper">
+                <p class="test-over-stats wpm-result">WPM: <span id="test-over-wpm">90</span></p>
+                <p class="test-over-stats accuracy-result">
+                  Accuracy: <span id="test-over-accuracy">90%</span>
+                </p>
+                <p class="test-over-stats char-result">
+                  Characters: <span id="test-over-characters">120/5</span>
+                </p>
+              </div>
+            </div>
+            <button id="test-over-btn" class="test-over-btn btn">Go again</button>
+          </div>
         </div>
       </div>
     </main>
