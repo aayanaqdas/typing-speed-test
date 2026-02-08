@@ -226,7 +226,7 @@ main {
   width: 100%;
   z-index: 9;
   padding: clamp(1.5rem, 4vw, 3rem);
-  display: flex;
+  display: none;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
@@ -331,7 +331,7 @@ main {
 }
 
 .test-over-stats.char-result span {
-  color: var(--green-500);
+  color: var(--neutral-500);
 }
 
 .test-over-btn {

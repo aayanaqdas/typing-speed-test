@@ -7,6 +7,7 @@ const typingInput = document.getElementById("typing-input");
 const quoteDisplay = document.getElementById("quote-display");
 const caretEl = document.getElementById("caret");
 const settingInputs = document.querySelectorAll(`input[name="difficulty"], input[name="mode"]`);
+const testOverOverlay = document.querySelector(".test-over-overlay");
 const testOverRestartBtn = document.getElementById("test-over-btn");
 
 let settings = {
@@ -30,6 +31,9 @@ let testCompleted = false;
 let timer = null;
 let timeLeft = 60;
 let timeElapsed = 0;
+
+let wpm = 0;
+let accuracy = 0;
 
 async function getQuote() {
   try {
@@ -174,13 +178,15 @@ function endTest() {
   testFinished = true;
   testStarted = false;
   testCompleted = currentIndex >= quoteText.length;
+  createTestOverOverlay();
+
   console.log("test ended");
 }
 
 function updateStats() {
   const totalTyped = correctChars + totalErrors;
 
-  const accuracy = totalTyped === 0 ? 100 : Math.round((correctChars / totalTyped) * 100);
+  accuracy = totalTyped === 0 ? 100 : Math.round((correctChars / totalTyped) * 100);
 
   accuracyEl.innerText = accuracy + "%";
 
@@ -189,7 +195,7 @@ function updateStats() {
 
     const grossWpm = correctChars / 5 / timeInMinutes;
     const netWpm = grossWpm - totalErrors / 5 / timeInMinutes;
-    const wpm = Math.max(0, Math.round(netWpm));
+    wpm = Math.max(0, Math.round(netWpm));
     wpmEl.innerText = wpm;
 
     console.log("Gross WPM: " + grossWpm, "NetWPM: " + netWpm, "WPM: " + wpm);
@@ -209,13 +215,26 @@ function scrollLines(activeSpan) {
   }
 }
 
+function createTestOverOverlay() {
+  const header = document.querySelector(".test-over-h");
+  const text = document.querySelector(".test-over-p");
+  const wpmEl = document.getElementById("test-over-wpm");
+  const accuracyEl = document.getElementById("test-over-accuracy");
+  const charactersEl = document.getElementById("test-over-characters");
+
+  testOverOverlay.style.display = "flex";
+  header.textContent = "Test Complete!";
+  text.textContent = "Solid run. Keep pushing to beat your high score.";
+  wpmEl.textContent = wpm;
+  accuracyEl.textContent = accuracy + "%";
+  accuracyEl.style.color = accuracy === 100 ? "var(--green-500)" : "var(--red-500)";
+  charactersEl.innerHTML = `<span style="color: var(--green-500)">${correctChars}</span>/<span style="color: var(--red-500)">${totalErrors}</span>`;
+}
 
 testOverRestartBtn.addEventListener("click", () => {
-    const overlay = document.querySelector(".test-over-overlay");
-    reset();
-    overlay.style.display = "none";
-
-})
+  reset();
+  testOverOverlay.style.display = "none";
+});
 
 dropDownBtns.forEach((btn) => {
   const dropDownContent = btn.nextElementSibling;
