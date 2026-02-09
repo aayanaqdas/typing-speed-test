@@ -19,8 +19,11 @@ let settings = {
 let quoteSpans = null;
 let quotesData = null;
 let quoteText = null;
+let lastQuoteEndIndex = 0;
 let currentIndex = 0;
 let minAllowedIndex = 0;
+
+let quoteLoadTriggered = false;
 
 let correctChars = 0;
 let totalKeyPresses = 0;
@@ -48,23 +51,49 @@ async function getQuote() {
     }
     const difficulty = quotesData[settings.difficulty];
     const randomIndex = Math.floor(Math.random() * difficulty.length);
-    quoteText = difficulty[randomIndex].text;
-    renderQuote();
+    const newQuote = difficulty[randomIndex].text;
+
+    if (settings.mode === "timed" && testStarted) {
+      //Add new quote in timed mode
+      quoteText += " " + newQuote;
+      lastQuoteEndIndex = quoteText.length;
+      quoteLoadTriggered = false;
+      appendQuote(true);
+      console.log("append quote: " + quoteText.length);
+    } else {
+      //Replace in passage mode
+      quoteText = newQuote;
+      lastQuoteEndIndex = newQuote.length;
+      quoteLoadTriggered = false;
+      appendQuote(false);
+    }
   } catch (error) {
     console.log(error);
   }
 }
 
-function renderQuote() {
-  quoteDisplay.innerHTML = "";
+function appendQuote(appendMode = false) {
+  if (!appendMode) {
+    quoteDisplay.innerHTML = "";
+  } else {
+    //Separator for the old and new quotes
+    const space = document.createElement("span");
+    space.innerText = " ";
+    space.dataset.errorCounted = "false";
+    quoteDisplay.appendChild(space);
+  }
+
   typingInput.focus();
-  quoteText.split("").forEach((letter) => {
+
+  const textToRender = appendMode ? quoteText.substring(quoteSpans.length) : quoteText;
+
+  (textToRender.split("").forEach((letter) => {
     const letterSpan = document.createElement("span");
     letterSpan.innerText = letter;
     letterSpan.dataset.errorCounted = "false";
     quoteDisplay.appendChild(letterSpan);
-  });
-  quoteSpans = quoteDisplay.querySelectorAll("span");
+  }),
+    (quoteSpans = quoteDisplay.querySelectorAll("span")));
   moveCaret();
 }
 
@@ -110,7 +139,10 @@ function checkTypedLetter() {
   currentIndex = inputLetters.length;
 
   if (currentIndex >= quoteText.length) {
-    endTest();
+    if (settings.mode === "passage") {
+      endTest();
+    }
+    return;
   }
 
   moveCaret();
@@ -138,6 +170,8 @@ function reset() {
   testStarted = false;
   testFinished = false;
   testCompleted = false;
+  quoteLoadTriggered = false;
+  lastQuoteEndIndex = 0;
   currentIndex = 0;
   minAllowedIndex = 0;
   correctChars = 0;
@@ -225,7 +259,6 @@ function updateStats() {
     // const grossWpm = Math.round(totalCharsTyped / 5 / timeInMinutes);
 
     wpmEl.innerText = wpm;
-
   } else {
     wpmEl.innerText = 0;
   }
@@ -239,6 +272,22 @@ function scrollLines(activeSpan) {
   if (currentLine >= 2) {
     const scrollAmount = (currentLine - 1) * lineHeight;
     quoteDisplay.scrollTop = scrollAmount;
+
+    if (settings.mode === "timed" && timeLeft > 0 && !quoteLoadTriggered) {
+        const thresholds = {
+            easy: 70,
+            medium: 100,
+            hard: 150
+        }
+
+        const threshold = thresholds[settings.difficulty] || 50;
+        const remainingChars = quoteText.length - currentIndex;
+
+        if(remainingChars <= threshold) {
+            quoteLoadTriggered = true;
+            getQuote();
+        }
+    }
   }
 }
 
@@ -257,21 +306,21 @@ function createTestOverOverlay() {
       text: "You've set the bar. Now the real challenge begins. Time to beat it.",
       buttonText: "Beat This Score",
       imageUrl: "./assets/images/icon-completed.svg",
-      class: "overlay-animation"
+      class: "overlay-animation",
     },
     complete: {
       header: "Test Complete!",
       text: "Solid run. Keep pushing to beat your high score.",
       buttonText: "Go Again",
       imageUrl: "./assets/images/icon-completed.svg",
-      class: "overlay-animation"
+      class: "overlay-animation",
     },
     newPB: {
       header: "High Score Smashed!",
       text: "You are getting faster. That was incredible typing.",
       buttonText: "Beat This Score",
       imageUrl: "./assets/images/icon-new-pb.svg",
-      class: "new-pb"
+      class: "new-pb",
     },
   };
 
@@ -281,35 +330,55 @@ function createTestOverOverlay() {
     personalBest = wpm;
     localStorage.setItem("best", wpm);
     personalBestEl.textContent = wpm;
-    console.log("baseline")
+    console.log("baseline");
   } else if (wpm > personalBest) {
     overlayType = "newPB";
     personalBest = wpm;
     localStorage.setItem("best", wpm);
     personalBestEl.textContent = wpm;
-    console.log("new")
+    triggerConfetti();
+    console.log("new");
   } else {
     overlayType = "complete";
-    console.log("comp")
+    console.log("comp");
   }
 
   const config = overlayConfig[overlayType];
 
-  img.classList.remove("newPB", "overlay-animation")
+  img.classList.remove("newPB", "overlay-animation");
 
   testOverOverlay.style.display = "flex";
-  
+
   header.textContent = config.header;
   text.textContent = config.text;
   img.src = config.imageUrl;
   img.classList.add(config.class);
   btn.textContent = config.buttonText;
 
-
   wpmEl.textContent = wpm;
   accuracyEl.textContent = accuracy + "%";
   accuracyEl.style.color = accuracy === 100 ? "var(--green-500)" : "var(--red-500)";
   charactersEl.innerHTML = `<span style="color: var(--green-500)">${correctChars}</span>/<span style="color: var(--red-500)">${totalErrors}</span>`;
+}
+
+function triggerConfetti() {
+  setTimeout(() => {
+    confetti({
+      particleCount: 50,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0 },
+    });
+  }, 150);
+
+  setTimeout(() => {
+    confetti({
+      particleCount: 50,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1 },
+    });
+  }, 300);
 }
 
 testOverRestartBtn.addEventListener("click", () => {
@@ -373,8 +442,8 @@ typingInput.addEventListener("input", () => {
 
   if (typingInput.value.length < minAllowedIndex) {
     typingInput.value = quoteText.substring(0, minAllowedIndex);
-    checkTypedLetter()
-    console.log("backspace clicked")
+    checkTypedLetter();
+    console.log("backspace clicked");
     return;
   }
 
