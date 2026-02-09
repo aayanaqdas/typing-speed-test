@@ -9,6 +9,7 @@ const caretEl = document.getElementById("caret");
 const settingInputs = document.querySelectorAll(`input[name="difficulty"], input[name="mode"]`);
 const testOverOverlay = document.querySelector(".test-over-overlay");
 const testOverRestartBtn = document.getElementById("test-over-btn");
+const personalBestEl = document.querySelector(".word-count");
 
 let settings = {
   difficulty: "easy",
@@ -19,10 +20,12 @@ let quoteSpans = null;
 let quotesData = null;
 let quoteText = null;
 let currentIndex = 0;
+let minAllowedIndex = 0;
 
 let correctChars = 0;
-let incorrectChars = 0;
+let totalKeyPresses = 0;
 let totalErrors = 0;
+let totalCharsTyped = 0;
 
 let testStarted = false;
 let testFinished = false;
@@ -34,6 +37,8 @@ let timeElapsed = 0;
 
 let wpm = 0;
 let accuracy = 0;
+
+let personalBest = Number(localStorage.getItem("best")) || 0;
 
 async function getQuote() {
   try {
@@ -65,18 +70,31 @@ function renderQuote() {
 
 function checkTypedLetter() {
   const inputLetters = typingInput.value.split("");
+  totalCharsTyped = inputLetters.length;
 
   correctChars = 0;
-  const currentIncorrect = 0;
+
   quoteSpans.forEach((span, index) => {
     const letter = inputLetters[index];
+
+    // Don't re-evaluate locked characters (before minAllowedIndex)
+    if (index < minAllowedIndex) {
+      // Just count if it's currently marked as correct
+      if (span.classList.contains("correct")) {
+        correctChars++;
+      }
+      return;
+    }
+
     if (letter == null) {
       span.classList.remove("correct", "incorrect");
     } else if (letter === span.innerText) {
       span.classList.add("correct");
       span.classList.remove("incorrect");
-      if (span.dataset.errorCounted !== "true") {
-        correctChars++;
+      correctChars++;
+
+      if (letter === " ") {
+        minAllowedIndex = index + 1;
       }
     } else {
       span.classList.add("incorrect");
@@ -89,7 +107,6 @@ function checkTypedLetter() {
     }
   });
 
-  incorrectChars = currentIncorrect;
   currentIndex = inputLetters.length;
 
   if (currentIndex >= quoteText.length) {
@@ -97,6 +114,7 @@ function checkTypedLetter() {
   }
 
   moveCaret();
+  updateStats();
 }
 
 function moveCaret() {
@@ -121,12 +139,17 @@ function reset() {
   testFinished = false;
   testCompleted = false;
   currentIndex = 0;
+  minAllowedIndex = 0;
   correctChars = 0;
-  incorrectChars = 0;
+  totalKeyPresses = 0;
   totalErrors = 0;
+  totalCharsTyped = 0;
   timeLeft = 60;
   timeElapsed = 0;
   timeEl.innerText = settings.mode === "timed" ? "1:00" : "0:00";
+
+  wpm = 0;
+  accuracy = 100;
 
   typingInput.value = "";
   wpmEl.textContent = "0";
@@ -184,21 +207,25 @@ function endTest() {
 }
 
 function updateStats() {
-  const totalTyped = correctChars + totalErrors;
-
-  accuracy = totalTyped === 0 ? 100 : Math.round((correctChars / totalTyped) * 100);
-
+  // Accuracy = (correct keypresses / total keypresses) * 100
+  const calculatedAccuracy =
+    totalKeyPresses === 0
+      ? 100
+      : Math.round(((totalKeyPresses - totalErrors) / totalKeyPresses) * 100);
+  accuracy = Math.max(0, calculatedAccuracy);
   accuracyEl.innerText = accuracy + "%";
 
   if (timeElapsed > 0) {
     const timeInMinutes = timeElapsed / 60;
 
-    const grossWpm = correctChars / 5 / timeInMinutes;
-    const netWpm = grossWpm - totalErrors / 5 / timeInMinutes;
-    wpm = Math.max(0, Math.round(netWpm));
+    // Net WPM (displayed as WPM) = (correct characters / 5) / time
+    wpm = Math.round(correctChars / 5 / timeInMinutes);
+
+    // Gross WPM (Raw WPM) = (all typed characters / 5) / time
+    // const grossWpm = Math.round(totalCharsTyped / 5 / timeInMinutes);
+
     wpmEl.innerText = wpm;
 
-    console.log("Gross WPM: " + grossWpm, "NetWPM: " + netWpm, "WPM: " + wpm);
   } else {
     wpmEl.innerText = 0;
   }
@@ -216,15 +243,69 @@ function scrollLines(activeSpan) {
 }
 
 function createTestOverOverlay() {
+  const img = document.querySelector(".overlay-img");
   const header = document.querySelector(".test-over-h");
   const text = document.querySelector(".test-over-p");
+  const btn = document.getElementById("test-over-btn");
   const wpmEl = document.getElementById("test-over-wpm");
   const accuracyEl = document.getElementById("test-over-accuracy");
   const charactersEl = document.getElementById("test-over-characters");
 
+  const overlayConfig = {
+    baseline: {
+      header: "Baseline Established!",
+      text: "You've set the bar. Now the real challenge begins. Time to beat it.",
+      buttonText: "Beat This Score",
+      imageUrl: "./assets/images/icon-completed.svg",
+      class: "overlay-animation"
+    },
+    complete: {
+      header: "Test Complete!",
+      text: "Solid run. Keep pushing to beat your high score.",
+      buttonText: "Go Again",
+      imageUrl: "./assets/images/icon-completed.svg",
+      class: "overlay-animation"
+    },
+    newPB: {
+      header: "High Score Smashed!",
+      text: "You are getting faster. That was incredible typing.",
+      buttonText: "Beat This Score",
+      imageUrl: "./assets/images/icon-new-pb.svg",
+      class: "new-pb"
+    },
+  };
+
+  let overlayType;
+  if (personalBest === 0) {
+    overlayType = "baseline";
+    personalBest = wpm;
+    localStorage.setItem("best", wpm);
+    personalBestEl.textContent = wpm;
+    console.log("baseline")
+  } else if (wpm > personalBest) {
+    overlayType = "newPB";
+    personalBest = wpm;
+    localStorage.setItem("best", wpm);
+    personalBestEl.textContent = wpm;
+    console.log("new")
+  } else {
+    overlayType = "complete";
+    console.log("comp")
+  }
+
+  const config = overlayConfig[overlayType];
+
+  img.classList.remove("newPB", "overlay-animation")
+
   testOverOverlay.style.display = "flex";
-  header.textContent = "Test Complete!";
-  text.textContent = "Solid run. Keep pushing to beat your high score.";
+  
+  header.textContent = config.header;
+  text.textContent = config.text;
+  img.src = config.imageUrl;
+  img.classList.add(config.class);
+  btn.textContent = config.buttonText;
+
+
   wpmEl.textContent = wpm;
   accuracyEl.textContent = accuracy + "%";
   accuracyEl.style.color = accuracy === 100 ? "var(--green-500)" : "var(--red-500)";
@@ -270,11 +351,15 @@ settingInputs.forEach((input) => {
     }
   });
 });
-console.log("default", settings);
 typingInput.addEventListener("keydown", (e) => {
   const blockedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
   if (blockedKeys.includes(e.code)) {
     e.preventDefault();
+    return;
+  }
+
+  if (!testFinished && testStarted) {
+    totalKeyPresses++;
   }
 });
 
@@ -286,6 +371,13 @@ typingInput.addEventListener("click", () => {
 typingInput.addEventListener("input", () => {
   if (testFinished) return;
 
+  if (typingInput.value.length < minAllowedIndex) {
+    typingInput.value = quoteText.substring(0, minAllowedIndex);
+    checkTypedLetter()
+    console.log("backspace clicked")
+    return;
+  }
+
   if (!testStarted) {
     startTest();
   } else {
@@ -295,4 +387,7 @@ typingInput.addEventListener("input", () => {
 window.addEventListener("resize", checkTypedLetter);
 restartBtn.addEventListener("click", reset);
 
-getQuote();
+window.onload = () => {
+  personalBestEl.textContent = personalBest;
+  getQuote();
+};

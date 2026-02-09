@@ -252,6 +252,9 @@ main {
 .test-over-overlay img {
   width: clamp(3rem, 13vw, 5.5rem);
   border-radius: 50%;
+}
+
+.overlay-animation {
   animation: pulse-circles 0.6s ease-out forwards;
 }
 
