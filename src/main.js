@@ -16,22 +16,23 @@ let settings = {
   mode: "timed",
 };
 
-let quoteSpans = null;
 let quotesData = null;
 let quoteText = null;
+let quoteSpans = null;
 let lastQuoteEndIndex = 0;
+let quoteLoadTriggered = false;
+
 let currentIndex = 0;
 let minAllowedIndex = 0;
-
-let displayStartIndex = 0; // Where DOM rendering starts in the full quoteText
-let characterStates = []; // Stores state for each character: { correct: boolean, errorCounted: boolean }
-
-let quoteLoadTriggered = false;
+let displayStartIndex = 0;
+let characterStates = [];
 
 let correctChars = 0;
 let totalKeyPresses = 0;
 let totalErrors = 0;
 let totalCharsTyped = 0;
+let wpm = 0;
+let accuracy = 0;
 
 let testStarted = false;
 let testFinished = false;
@@ -41,9 +42,6 @@ let timer = null;
 let timeLeft = 60;
 let timeElapsed = 0;
 
-let wpm = 0;
-let accuracy = 0;
-
 let personalBest = Number(localStorage.getItem("best")) || 0;
 
 async function getQuote() {
@@ -52,12 +50,13 @@ async function getQuote() {
       const response = await fetch("./data.json");
       quotesData = await response.json();
     }
+
     const difficulty = quotesData[settings.difficulty];
     const randomIndex = Math.floor(Math.random() * difficulty.length);
     const newQuote = difficulty[randomIndex].text;
 
     if (settings.mode === "timed" && testStarted) {
-      //Add new quote in timed mode
+      // Add new quote in timed mode
       const oldLength = quoteText.length;
       quoteText += " " + newQuote;
       lastQuoteEndIndex = oldLength;
@@ -65,7 +64,7 @@ async function getQuote() {
       appendQuote(true);
       console.log("append quote: " + quoteText.length);
     } else {
-      //Replace in passage mode
+      // Replace in passage mode
       quoteText = newQuote;
       lastQuoteEndIndex = newQuote.length;
       quoteLoadTriggered = false;
@@ -86,8 +85,6 @@ function appendQuote(appendMode = false) {
 
   typingInput.focus();
 
-  // When appending start from where it left off (lastQuoteEndIndex)
-  // When not appending start from 0
   const startPos = appendMode ? lastQuoteEndIndex : 0;
   const textToRender = quoteText.substring(startPos);
 
@@ -96,7 +93,7 @@ function appendQuote(appendMode = false) {
     letterSpan.innerText = letter;
     quoteDisplay.appendChild(letterSpan);
   });
-  
+
   quoteSpans = quoteDisplay.querySelectorAll("span");
   moveCaret();
 }
@@ -104,14 +101,13 @@ function appendQuote(appendMode = false) {
 function checkTypedLetter() {
   const inputLetters = typingInput.value.split("");
   totalCharsTyped = inputLetters.length;
-
   correctChars = 0;
 
   inputLetters.forEach((letter, index) => {
     const quoteChar = quoteText[index];
     const prevState = characterStates[index];
 
-    // Dont re-evaluate locked characters (before minAllowedIndex)
+    // Don't re-evaluate locked characters (before minAllowedIndex)
     if (index < minAllowedIndex) {
       if (prevState?.correct) {
         correctChars++;
@@ -141,6 +137,19 @@ function checkTypedLetter() {
     characterStates.length = inputLetters.length;
   }
 
+  updateVisualFeedback();
+  currentIndex = inputLetters.length;
+
+  if (currentIndex >= quoteText.length && settings.mode === "passage") {
+    endTest();
+    return;
+  }
+
+  moveCaret();
+  updateStats();
+}
+
+function updateVisualFeedback() {
   quoteSpans.forEach((span, spanIndex) => {
     const actualIndex = displayStartIndex + spanIndex;
     const state = characterStates[actualIndex];
@@ -163,18 +172,6 @@ function checkTypedLetter() {
       span.classList.remove("correct");
     }
   });
-
-  currentIndex = inputLetters.length;
-
-  if (currentIndex >= quoteText.length) {
-    if (settings.mode === "passage") {
-      endTest();
-    }
-    return;
-  }
-
-  moveCaret();
-  updateStats();
 }
 
 function moveCaret() {
@@ -193,70 +190,97 @@ function moveCaret() {
   }
 }
 
-function reset() {
-  clearInterval(timer);
+function scrollLines(activeSpan) {
+  const relativeTop = activeSpan.offsetTop;
+  const lineHeight = parseFloat(getComputedStyle(quoteDisplay).lineHeight);
+  const currentLine = Math.floor(relativeTop / lineHeight);
 
-  testStarted = false;
-  testFinished = false;
-  testCompleted = false;
-  quoteLoadTriggered = false;
-  lastQuoteEndIndex = 0;
-  currentIndex = 0;
-  minAllowedIndex = 0;
-  displayStartIndex = 0;
-  characterStates = [];
-  correctChars = 0;
-  totalKeyPresses = 0;
-  totalErrors = 0;
-  totalCharsTyped = 0;
-  timeLeft = 60;
-  timeElapsed = 0;
-  timeEl.innerText = settings.mode === "timed" ? "1:00" : "0:00";
+  if (currentLine >= 2) {
+    const scrollAmount = (currentLine - 1) * lineHeight;
+    quoteDisplay.scrollTop = scrollAmount;
 
-  wpm = 0;
-  accuracy = 100;
+    handleDOMCleanup();
+    handleQuotePreloading();
+  }
+}
 
-  typingInput.value = "";
-  wpmEl.textContent = "0";
-  accuracyEl.textContent = "100%";
+function handleDOMCleanup() {
+  // Remove old DOM content when far enough ahead
+  if (
+    settings.mode === "timed" &&
+    currentIndex > displayStartIndex + 150 &&
+    displayStartIndex < currentIndex - 50
+  ) {
+    const charsToRemove = Math.min(50, currentIndex - displayStartIndex - 50);
 
-  quoteDisplay.scrollTop = 0;
+    for (let i = 0; i < charsToRemove && quoteDisplay.firstChild; i++) {
+      quoteDisplay.removeChild(quoteDisplay.firstChild);
+    }
 
-  getQuote();
+    displayStartIndex += charsToRemove;
+    quoteSpans = quoteDisplay.querySelectorAll("span");
+    quoteDisplay.scrollTop = 0;
+    moveCaret();
+  }
+}
+
+function handleQuotePreloading() {
+  if (settings.mode === "timed" && timeLeft > 0 && !quoteLoadTriggered) {
+    const thresholds = {
+      easy: 70,
+      medium: 100,
+      hard: 150,
+    };
+
+    const threshold = thresholds[settings.difficulty] || 50;
+    const remainingChars = quoteText.length - currentIndex;
+
+    if (remainingChars <= threshold) {
+      quoteLoadTriggered = true;
+      getQuote();
+    }
+  }
 }
 
 function startTest() {
   if (testStarted) return;
+
   console.log(quoteText.length);
   testStarted = true;
   testFinished = false;
-
   checkTypedLetter();
 
   if (settings.mode === "timed") {
-    timer = setInterval(() => {
-      timeLeft--;
-      timeElapsed++;
-
-      const minutes = Math.floor(timeLeft / 60);
-      const seconds = timeLeft % 60;
-      timeEl.innerText = `${minutes}:${String(seconds).padStart(2, "0")}`;
-      updateStats();
-
-      if (timeLeft <= 0) {
-        endTest();
-      }
-    }, 1000);
+    startTimedMode();
   } else {
-    // Passage Mode
-    timer = setInterval(() => {
-      timeElapsed++;
-      const minutes = Math.floor(timeElapsed / 60);
-      const seconds = timeElapsed % 60;
-      timeEl.innerText = `${minutes}:${String(seconds).padStart(2, "0")}`;
-      updateStats();
-    }, 1000);
+    startPassageMode();
   }
+}
+
+function startTimedMode() {
+  timer = setInterval(() => {
+    timeLeft--;
+    timeElapsed++;
+
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    timeEl.innerText = `${minutes}:${String(seconds).padStart(2, "0")}`;
+    updateStats();
+
+    if (timeLeft <= 0) {
+      endTest();
+    }
+  }, 1000);
+}
+
+function startPassageMode() {
+  timer = setInterval(() => {
+    timeElapsed++;
+    const minutes = Math.floor(timeElapsed / 60);
+    const seconds = timeElapsed % 60;
+    timeEl.innerText = `${minutes}:${String(seconds).padStart(2, "0")}`;
+    updateStats();
+  }, 1000);
 }
 
 function endTest() {
@@ -271,70 +295,61 @@ function endTest() {
   console.log("test ended");
 }
 
+function reset() {
+  clearInterval(timer);
+
+  testStarted = false;
+  testFinished = false;
+  testCompleted = false;
+  quoteLoadTriggered = false;
+
+  currentIndex = 0;
+  minAllowedIndex = 0;
+  displayStartIndex = 0;
+  lastQuoteEndIndex = 0;
+  characterStates = [];
+
+  correctChars = 0;
+  totalKeyPresses = 0;
+  totalErrors = 0;
+  totalCharsTyped = 0;
+  wpm = 0;
+  accuracy = 100;
+
+  timeLeft = 60;
+  timeElapsed = 0;
+  timeEl.innerText = settings.mode === "timed" ? "1:00" : "0:00";
+
+  // Reset UI
+  typingInput.value = "";
+  wpmEl.textContent = "0";
+  accuracyEl.textContent = "100%";
+  quoteDisplay.scrollTop = 0;
+
+  getQuote();
+}
+
 function updateStats() {
-  // Accuracy = (correct keypresses / total keypresses) * 100
+  updateAccuracy();
+  updateWPM();
+}
+
+function updateAccuracy() {
   const calculatedAccuracy =
     totalKeyPresses === 0
       ? 100
       : Math.round(((totalKeyPresses - totalErrors) / totalKeyPresses) * 100);
   accuracy = Math.max(0, calculatedAccuracy);
   accuracyEl.innerText = accuracy + "%";
+}
 
+function updateWPM() {
   if (timeElapsed > 0) {
     const timeInMinutes = timeElapsed / 60;
-
-    // Net WPM (displayed as WPM) = (correct characters / 5) / time
     wpm = Math.round(correctChars / 5 / timeInMinutes);
-
-    // Gross WPM (Raw WPM) = (all typed characters / 5) / time
-    // const grossWpm = Math.round(totalCharsTyped / 5 / timeInMinutes);
-
     wpmEl.innerText = wpm;
   } else {
     wpmEl.innerText = 0;
-  }
-}
-
-function scrollLines(activeSpan) {
-  const relativeTop = activeSpan.offsetTop;
-  const lineHeight = parseFloat(getComputedStyle(quoteDisplay).lineHeight);
-  const currentLine = Math.floor(relativeTop / lineHeight);
-
-  if (currentLine >= 2) {
-    const scrollAmount = (currentLine - 1) * lineHeight;
-    quoteDisplay.scrollTop = scrollAmount;
-
-    // Remove old DOM content when far enough ahead
-    // Only remove if not near the start
-    if (settings.mode === "timed" && currentIndex > displayStartIndex + 150 && displayStartIndex < currentIndex - 50) {
-      const charsToRemove = Math.min(50, currentIndex - displayStartIndex - 50);
-      
-      // Remove spans from beginning of DOM
-      for (let i = 0; i < charsToRemove && quoteDisplay.firstChild; i++) {
-        quoteDisplay.removeChild(quoteDisplay.firstChild);
-      }
-      
-      displayStartIndex += charsToRemove;
-      quoteSpans = quoteDisplay.querySelectorAll("span");
-      quoteDisplay.scrollTop = 0;
-      moveCaret();
-    }
-
-    if (settings.mode === "timed" && timeLeft > 0 && !quoteLoadTriggered) {
-      const thresholds = {
-        easy: 70,
-        medium: 100,
-        hard: 150,
-      };
-
-      const threshold = thresholds[settings.difficulty] || 50;
-      const remainingChars = quoteText.length - currentIndex;
-
-      if (remainingChars <= threshold) {
-        quoteLoadTriggered = true;
-        getQuote();
-      }
-    }
   }
 }
 
@@ -371,29 +386,10 @@ function createTestOverOverlay() {
     },
   };
 
-  let overlayType;
-  if (personalBest === 0) {
-    overlayType = "baseline";
-    personalBest = wpm;
-    localStorage.setItem("best", wpm);
-    personalBestEl.textContent = wpm;
-    console.log("baseline");
-  } else if (wpm > personalBest) {
-    overlayType = "newPB";
-    personalBest = wpm;
-    localStorage.setItem("best", wpm);
-    personalBestEl.textContent = wpm;
-    triggerConfetti();
-    console.log("new");
-  } else {
-    overlayType = "complete";
-    console.log("comp");
-  }
-
+  const overlayType = determineOverlayType();
   const config = overlayConfig[overlayType];
 
   img.classList.remove("newPB", "overlay-animation");
-
   testOverOverlay.style.display = "flex";
 
   header.textContent = config.header;
@@ -406,6 +402,26 @@ function createTestOverOverlay() {
   accuracyEl.textContent = accuracy + "%";
   accuracyEl.style.color = accuracy === 100 ? "var(--green-500)" : "var(--red-500)";
   charactersEl.innerHTML = `<span style="color: var(--green-500)">${correctChars}</span>/<span style="color: var(--red-500)">${totalErrors}</span>`;
+}
+
+function determineOverlayType() {
+  if (personalBest === 0) {
+    personalBest = wpm;
+    localStorage.setItem("best", wpm);
+    personalBestEl.textContent = wpm;
+    console.log("baseline");
+    return "baseline";
+  } else if (wpm > personalBest) {
+    personalBest = wpm;
+    localStorage.setItem("best", wpm);
+    personalBestEl.textContent = wpm;
+    triggerConfetti();
+    console.log("new");
+    return "newPB";
+  } else {
+    console.log("comp");
+    return "complete";
+  }
 }
 
 function triggerConfetti() {
@@ -428,11 +444,6 @@ function triggerConfetti() {
   }, 300);
 }
 
-testOverRestartBtn.addEventListener("click", () => {
-  reset();
-  testOverOverlay.style.display = "none";
-});
-
 dropDownBtns.forEach((btn) => {
   const dropDownContent = btn.nextElementSibling;
   const dropDownInputs = dropDownContent.querySelectorAll(`input[type="radio"]`);
@@ -450,6 +461,7 @@ dropDownBtns.forEach((btn) => {
     });
   });
 });
+
 document.addEventListener("click", (e) => {
   if (!e.target.closest(".dropdown")) {
     document.querySelectorAll(".dropdown-content").forEach((content) => {
@@ -466,6 +478,7 @@ settingInputs.forEach((input) => {
     }
   });
 });
+
 typingInput.addEventListener("keydown", (e) => {
   const blockedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
   if (blockedKeys.includes(e.code)) {
@@ -478,7 +491,6 @@ typingInput.addEventListener("keydown", (e) => {
   }
 });
 
-//Keeps cursor at the end
 typingInput.addEventListener("click", () => {
   typingInput.setSelectionRange(typingInput.value.length, typingInput.value.length);
 });
@@ -499,8 +511,15 @@ typingInput.addEventListener("input", () => {
     checkTypedLetter();
   }
 });
-window.addEventListener("resize", checkTypedLetter);
+
 restartBtn.addEventListener("click", reset);
+
+testOverRestartBtn.addEventListener("click", () => {
+  reset();
+  testOverOverlay.style.display = "none";
+});
+
+window.addEventListener("resize", checkTypedLetter);
 
 window.onload = () => {
   personalBestEl.textContent = personalBest;
