@@ -23,6 +23,9 @@ let lastQuoteEndIndex = 0;
 let currentIndex = 0;
 let minAllowedIndex = 0;
 
+let displayStartIndex = 0; // Where DOM rendering starts in the full quoteText
+let characterStates = []; // Stores state for each character: { correct: boolean, errorCounted: boolean }
+
 let quoteLoadTriggered = false;
 
 let correctChars = 0;
@@ -55,8 +58,9 @@ async function getQuote() {
 
     if (settings.mode === "timed" && testStarted) {
       //Add new quote in timed mode
+      const oldLength = quoteText.length;
       quoteText += " " + newQuote;
-      lastQuoteEndIndex = quoteText.length;
+      lastQuoteEndIndex = oldLength;
       quoteLoadTriggered = false;
       appendQuote(true);
       console.log("append quote: " + quoteText.length);
@@ -65,6 +69,7 @@ async function getQuote() {
       quoteText = newQuote;
       lastQuoteEndIndex = newQuote.length;
       quoteLoadTriggered = false;
+      console.log(quoteText.length);
       appendQuote(false);
     }
   } catch (error) {
@@ -75,25 +80,24 @@ async function getQuote() {
 function appendQuote(appendMode = false) {
   if (!appendMode) {
     quoteDisplay.innerHTML = "";
-  } else {
-    //Separator for the old and new quotes
-    const space = document.createElement("span");
-    space.innerText = " ";
-    space.dataset.errorCounted = "false";
-    quoteDisplay.appendChild(space);
+    displayStartIndex = 0;
+    characterStates = [];
   }
 
   typingInput.focus();
 
-  const textToRender = appendMode ? quoteText.substring(quoteSpans.length) : quoteText;
+  // When appending start from where it left off (lastQuoteEndIndex)
+  // When not appending start from 0
+  const startPos = appendMode ? lastQuoteEndIndex : 0;
+  const textToRender = quoteText.substring(startPos);
 
-  (textToRender.split("").forEach((letter) => {
+  textToRender.split("").forEach((letter) => {
     const letterSpan = document.createElement("span");
     letterSpan.innerText = letter;
-    letterSpan.dataset.errorCounted = "false";
     quoteDisplay.appendChild(letterSpan);
-  }),
-    (quoteSpans = quoteDisplay.querySelectorAll("span")));
+  });
+  
+  quoteSpans = quoteDisplay.querySelectorAll("span");
   moveCaret();
 }
 
@@ -103,36 +107,60 @@ function checkTypedLetter() {
 
   correctChars = 0;
 
-  quoteSpans.forEach((span, index) => {
-    const letter = inputLetters[index];
+  inputLetters.forEach((letter, index) => {
+    const quoteChar = quoteText[index];
+    const prevState = characterStates[index];
 
-    // Don't re-evaluate locked characters (before minAllowedIndex)
+    // Dont re-evaluate locked characters (before minAllowedIndex)
     if (index < minAllowedIndex) {
-      // Just count if it's currently marked as correct
-      if (span.classList.contains("correct")) {
+      if (prevState?.correct) {
         correctChars++;
       }
       return;
     }
 
-    if (letter == null) {
-      span.classList.remove("correct", "incorrect");
-    } else if (letter === span.innerText) {
-      span.classList.add("correct");
-      span.classList.remove("incorrect");
+    const isCorrect = letter === quoteChar;
+
+    if (isCorrect) {
+      characterStates[index] = { correct: true, errorCounted: prevState?.errorCounted || false };
       correctChars++;
 
       if (letter === " ") {
         minAllowedIndex = index + 1;
       }
     } else {
+      const shouldCountError = !prevState || !prevState.errorCounted;
+      if (shouldCountError) {
+        totalErrors++;
+      }
+      characterStates[index] = { correct: false, errorCounted: true };
+    }
+  });
+
+  if (inputLetters.length < characterStates.length) {
+    characterStates.length = inputLetters.length;
+  }
+
+  quoteSpans.forEach((span, spanIndex) => {
+    const actualIndex = displayStartIndex + spanIndex;
+    const state = characterStates[actualIndex];
+
+    if (actualIndex < minAllowedIndex) {
+      if (state?.correct) {
+        span.classList.add("correct");
+        span.classList.remove("incorrect");
+      }
+      return;
+    }
+
+    if (!state) {
+      span.classList.remove("correct", "incorrect");
+    } else if (state.correct) {
+      span.classList.add("correct");
+      span.classList.remove("incorrect");
+    } else {
       span.classList.add("incorrect");
       span.classList.remove("correct");
-
-      if (span.dataset.errorCounted !== "true") {
-        totalErrors++;
-        span.dataset.errorCounted = "true";
-      }
     }
   });
 
@@ -150,13 +178,14 @@ function checkTypedLetter() {
 }
 
 function moveCaret() {
-  const target = quoteSpans[currentIndex];
+  const spanIndex = currentIndex - displayStartIndex;
+  const target = quoteSpans[spanIndex];
 
   if (target) {
     scrollLines(target);
     caretEl.style.top = target.offsetTop - quoteDisplay.scrollTop + "px";
     caretEl.style.left = target.offsetLeft + "px";
-  } else if (currentIndex === quoteSpans.length) {
+  } else if (spanIndex === quoteSpans.length) {
     const lastSpan = quoteSpans[quoteSpans.length - 1];
     scrollLines(lastSpan);
     caretEl.style.top = lastSpan.offsetTop - quoteDisplay.scrollTop + "px";
@@ -174,6 +203,8 @@ function reset() {
   lastQuoteEndIndex = 0;
   currentIndex = 0;
   minAllowedIndex = 0;
+  displayStartIndex = 0;
+  characterStates = [];
   correctChars = 0;
   totalKeyPresses = 0;
   totalErrors = 0;
@@ -273,20 +304,36 @@ function scrollLines(activeSpan) {
     const scrollAmount = (currentLine - 1) * lineHeight;
     quoteDisplay.scrollTop = scrollAmount;
 
+    // Remove old DOM content when far enough ahead
+    // Only remove if not near the start
+    if (settings.mode === "timed" && currentIndex > displayStartIndex + 150 && displayStartIndex < currentIndex - 50) {
+      const charsToRemove = Math.min(50, currentIndex - displayStartIndex - 50);
+      
+      // Remove spans from beginning of DOM
+      for (let i = 0; i < charsToRemove && quoteDisplay.firstChild; i++) {
+        quoteDisplay.removeChild(quoteDisplay.firstChild);
+      }
+      
+      displayStartIndex += charsToRemove;
+      quoteSpans = quoteDisplay.querySelectorAll("span");
+      quoteDisplay.scrollTop = 0;
+      moveCaret();
+    }
+
     if (settings.mode === "timed" && timeLeft > 0 && !quoteLoadTriggered) {
-        const thresholds = {
-            easy: 70,
-            medium: 100,
-            hard: 150
-        }
+      const thresholds = {
+        easy: 70,
+        medium: 100,
+        hard: 150,
+      };
 
-        const threshold = thresholds[settings.difficulty] || 50;
-        const remainingChars = quoteText.length - currentIndex;
+      const threshold = thresholds[settings.difficulty] || 50;
+      const remainingChars = quoteText.length - currentIndex;
 
-        if(remainingChars <= threshold) {
-            quoteLoadTriggered = true;
-            getQuote();
-        }
+      if (remainingChars <= threshold) {
+        quoteLoadTriggered = true;
+        getQuote();
+      }
     }
   }
 }
@@ -416,7 +463,6 @@ settingInputs.forEach((input) => {
     if (input.checked) {
       settings[input.name] = input.value;
       reset();
-      getQuote();
     }
   });
 });
