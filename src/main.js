@@ -63,7 +63,7 @@ async function getQuote() {
 
 async function generatePassage() {
   if (!quotesData) {
-    const response = await fetch("./data.json");
+    const response = await fetch("./quotes.json");
     quotesData = await response.json();
   }
 
@@ -86,23 +86,49 @@ async function generateWords() {
 
   for (let i = 0; i < targetWordCount; i++) {
     let word = wordsData[Math.floor(Math.random() * wordsData.length)];
-
-    if (settings.punctuation && Math.random() < 0.5) {
-      const punctuations = [".", ",", "!", "?", ";", ":", " -"];
-      word += punctuations[Math.floor(Math.random() * punctuations.length)];
-    }
-
     words.push(word);
   }
 
   if (settings.numbers) {
-    for (let i = 0; i < words.length; i++) {
-      if (Math.random() < 0.1) {
-        words[i] = Math.floor(Math.random() * 1000).toString();
-      }
+    const numberOfNumbers = Math.floor(words.length * 0.12);
+
+    for (let i = 0; i < numberOfNumbers; i++) {
+      const randomIndex = Math.floor(Math.random() * words.length);
+      const randomNumber = Math.floor(Math.random() * 1000);
+      words[randomIndex] = randomNumber.toString();
     }
   }
 
+  if (settings.punctuation) {
+    const capPunctuations = [".", "!", "?"];
+    const unCapPunctuations = [",", ";", ":", " -"];
+    let shouldCapitalize = true;
+
+    for (let i = 0; i < words.length; i++) {
+      //skips number
+      if (words[i].match(/^\d+$/)) {
+        continue;
+      }
+
+      if (shouldCapitalize) {
+        words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
+        shouldCapitalize = false;
+      }
+
+      //adds punctuation every 5-12 words
+      const sentenceLength = Math.floor(Math.random() * 8) + 5;
+      const isEndOfSentence = (i + 1) % sentenceLength === 0 && i < words.length - 1;
+
+      if (isEndOfSentence) {
+        words[i] += capPunctuations[Math.floor(Math.random() * capPunctuations.length)];
+        shouldCapitalize = true;
+      }
+      //chance of other punctuations mid sentence
+      else if (Math.random() < 0.12 && !shouldCapitalize) {
+        words[i] += unCapPunctuations[Math.floor(Math.random() * unCapPunctuations.length)];
+      }
+    }
+  }
   quoteText = words.join(" ");
   appendQuote();
 }
@@ -519,7 +545,6 @@ typingInput.addEventListener("input", () => {
   if (typingInput.value.length < minAllowedIndex) {
     typingInput.value = quoteText.substring(0, minAllowedIndex);
     checkTypedLetter();
-    console.log("backspace clicked");
     return;
   }
 
