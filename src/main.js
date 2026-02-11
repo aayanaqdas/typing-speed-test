@@ -11,20 +11,25 @@ const testOverOverlay = document.querySelector(".test-over-overlay");
 const testOverRestartBtn = document.getElementById("test-over-btn");
 const personalBestEl = document.querySelector(".word-count");
 
+const punctuationCheckbox = document.getElementById("punctuation");
+const numbersCheckbox = document.getElementById("numbers");
+const difficultyDropdown = document.getElementById("difficulty-dropdown");
+const optionsDropdown = document.getElementById("options-dropdown");
+
 let settings = {
   difficulty: "easy",
   mode: "timed",
+  punctuation: false,
+  numbers: false,
 };
 
 let quotesData = null;
+let wordsData = null;
 let quoteText = null;
 let quoteSpans = null;
-let lastQuoteEndIndex = 0;
-let quoteLoadTriggered = false;
 
 let currentIndex = 0;
 let minAllowedIndex = 0;
-let displayStartIndex = 0;
 let characterStates = [];
 
 let correctChars = 0;
@@ -46,49 +51,69 @@ let personalBest = Number(localStorage.getItem("best")) || 0;
 
 async function getQuote() {
   try {
-    if (!quotesData) {
-      const response = await fetch("./data.json");
-      quotesData = await response.json();
-    }
-
-    const difficulty = quotesData[settings.difficulty];
-    const randomIndex = Math.floor(Math.random() * difficulty.length);
-    const newQuote = difficulty[randomIndex].text;
-
-    if (settings.mode === "timed" && testStarted) {
-      // Add new quote in timed mode
-      const oldLength = quoteText.length;
-      quoteText += " " + newQuote;
-      lastQuoteEndIndex = oldLength;
-      quoteLoadTriggered = false;
-      appendQuote(true);
-      console.log("append quote: " + quoteText.length);
+    if (settings.mode === "timed") {
+      await generateWords();
     } else {
-      // Replace in passage mode
-      quoteText = newQuote;
-      lastQuoteEndIndex = newQuote.length;
-      quoteLoadTriggered = false;
-      console.log(quoteText.length);
-      appendQuote(false);
+      await generatePassage();
     }
   } catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }
 
-function appendQuote(appendMode = false) {
-  if (!appendMode) {
-    quoteDisplay.innerHTML = "";
-    displayStartIndex = 0;
-    characterStates = [];
+async function generatePassage() {
+  if (!quotesData) {
+    const response = await fetch("./data.json");
+    quotesData = await response.json();
   }
+
+  const difficulty = quotesData[settings.difficulty];
+  const randomIndex = Math.floor(Math.random() * difficulty.length);
+  quoteText = difficulty[randomIndex].text;
+
+  appendQuote();
+}
+
+async function generateWords() {
+  if (!wordsData) {
+    const response = await fetch("./english_5k.json");
+    const data = await response.json();
+    wordsData = data.words;
+  }
+
+  const words = [];
+  const targetWordCount = 150;
+
+  for (let i = 0; i < targetWordCount; i++) {
+    let word = wordsData[Math.floor(Math.random() * wordsData.length)];
+
+    if (settings.punctuation && Math.random() < 0.5) {
+      const punctuations = [".", ",", "!", "?", ";", ":", " -"];
+      word += punctuations[Math.floor(Math.random() * punctuations.length)];
+    }
+
+    words.push(word);
+  }
+
+  if (settings.numbers) {
+    for (let i = 0; i < words.length; i++) {
+      if (Math.random() < 0.1) {
+        words[i] = Math.floor(Math.random() * 1000).toString();
+      }
+    }
+  }
+
+  quoteText = words.join(" ");
+  appendQuote();
+}
+
+function appendQuote() {
+  quoteDisplay.innerHTML = "";
+  characterStates = [];
 
   typingInput.focus();
 
-  const startPos = appendMode ? lastQuoteEndIndex : 0;
-  const textToRender = quoteText.substring(startPos);
-
-  textToRender.split("").forEach((letter) => {
+  quoteText.split("").forEach((letter) => {
     const letterSpan = document.createElement("span");
     letterSpan.innerText = letter;
     quoteDisplay.appendChild(letterSpan);
@@ -107,7 +132,6 @@ function checkTypedLetter() {
     const quoteChar = quoteText[index];
     const prevState = characterStates[index];
 
-    // Don't re-evaluate locked characters (before minAllowedIndex)
     if (index < minAllowedIndex) {
       if (prevState?.correct) {
         correctChars++;
@@ -140,7 +164,7 @@ function checkTypedLetter() {
   updateVisualFeedback();
   currentIndex = inputLetters.length;
 
-  if (currentIndex >= quoteText.length && settings.mode === "passage") {
+  if (currentIndex >= quoteText.length) {
     endTest();
     return;
   }
@@ -151,10 +175,9 @@ function checkTypedLetter() {
 
 function updateVisualFeedback() {
   quoteSpans.forEach((span, spanIndex) => {
-    const actualIndex = displayStartIndex + spanIndex;
-    const state = characterStates[actualIndex];
+    const state = characterStates[spanIndex];
 
-    if (actualIndex < minAllowedIndex) {
+    if (spanIndex < minAllowedIndex) {
       if (state?.correct) {
         span.classList.add("correct");
         span.classList.remove("incorrect");
@@ -175,8 +198,7 @@ function updateVisualFeedback() {
 }
 
 function moveCaret() {
-  const spanIndex = currentIndex - displayStartIndex;
-  const target = quoteSpans[spanIndex];
+  const target = quoteSpans[currentIndex];
 
   if (target) {
     scrollLines(target);
@@ -198,47 +220,6 @@ function scrollLines(activeSpan) {
   if (currentLine >= 2) {
     const scrollAmount = (currentLine - 1) * lineHeight;
     quoteDisplay.scrollTop = scrollAmount;
-
-    handleDOMCleanup();
-    handleQuotePreloading();
-  }
-}
-
-function handleDOMCleanup() {
-  // Remove old DOM content when far enough ahead
-  if (
-    settings.mode === "timed" &&
-    currentIndex > displayStartIndex + 150 &&
-    displayStartIndex < currentIndex - 50
-  ) {
-    const charsToRemove = Math.min(50, currentIndex - displayStartIndex - 50);
-
-    for (let i = 0; i < charsToRemove && quoteDisplay.firstChild; i++) {
-      quoteDisplay.removeChild(quoteDisplay.firstChild);
-    }
-
-    displayStartIndex += charsToRemove;
-    quoteSpans = quoteDisplay.querySelectorAll("span");
-    quoteDisplay.scrollTop = 0;
-    moveCaret();
-  }
-}
-
-function handleQuotePreloading() {
-  if (settings.mode === "timed" && timeLeft > 0 && !quoteLoadTriggered) {
-    const thresholds = {
-      easy: 70,
-      medium: 100,
-      hard: 150,
-    };
-
-    const threshold = thresholds[settings.difficulty] || 50;
-    const remainingChars = quoteText.length - currentIndex;
-
-    if (remainingChars <= threshold) {
-      quoteLoadTriggered = true;
-      getQuote();
-    }
   }
 }
 
@@ -301,12 +282,9 @@ function reset() {
   testStarted = false;
   testFinished = false;
   testCompleted = false;
-  quoteLoadTriggered = false;
 
   currentIndex = 0;
   minAllowedIndex = 0;
-  displayStartIndex = 0;
-  lastQuoteEndIndex = 0;
   characterStates = [];
 
   correctChars = 0;
@@ -320,7 +298,6 @@ function reset() {
   timeElapsed = 0;
   timeEl.innerText = settings.mode === "timed" ? "1:00" : "0:00";
 
-  // Reset UI
   typingInput.value = "";
   wpmEl.textContent = "0";
   accuracyEl.textContent = "100%";
@@ -328,7 +305,6 @@ function reset() {
 
   getQuote();
 }
-
 function updateStats() {
   updateAccuracy();
   updateWPM();
@@ -446,7 +422,9 @@ function triggerConfetti() {
 
 dropDownBtns.forEach((btn) => {
   const dropDownContent = btn.nextElementSibling;
-  const dropDownInputs = dropDownContent.querySelectorAll(`input[type="radio"]`);
+  const dropDownInputs = dropDownContent.querySelectorAll(
+    `input[type="radio"], input[type="checkbox"]`,
+  );
 
   btn.addEventListener("click", () => {
     dropDownContent.classList.toggle("show");
@@ -454,9 +432,24 @@ dropDownBtns.forEach((btn) => {
 
   dropDownInputs.forEach((input) => {
     input.addEventListener("change", () => {
-      if (input.checked) {
+      if (input.type === "radio" && input.checked) {
         dropDownContent.classList.remove("show");
         btn.textContent = input.nextSibling.textContent.trim();
+      }
+
+      if (input.type === "checkbox") {
+        const punctChecked = document.getElementById("punctuation").checked;
+        const numbersChecked = document.getElementById("numbers").checked;
+
+        if (!punctChecked && !numbersChecked) {
+          btn.textContent = "Options";
+        } else if (punctChecked && !numbersChecked) {
+          btn.textContent = "Punctuation";
+        } else if (!punctChecked && numbersChecked) {
+          btn.textContent = "Numbers";
+        } else {
+          btn.textContent = "Punct + Num";
+        }
       }
     });
   });
@@ -474,10 +467,35 @@ settingInputs.forEach((input) => {
   input.addEventListener("change", () => {
     if (input.checked) {
       settings[input.name] = input.value;
+
+      if (input.name === "mode") {
+        if (input.value === "timed") {
+          difficultyDropdown.style.display = "none";
+          optionsDropdown.style.display = "block";
+        } else {
+          difficultyDropdown.style.display = "block";
+          optionsDropdown.style.display = "none";
+        }
+      }
+
       reset();
     }
   });
 });
+
+if (punctuationCheckbox) {
+  punctuationCheckbox.addEventListener("change", (e) => {
+    settings.punctuation = e.target.checked;
+    reset();
+  });
+}
+
+if (numbersCheckbox) {
+  numbersCheckbox.addEventListener("change", (e) => {
+    settings.numbers = e.target.checked;
+    reset();
+  });
+}
 
 typingInput.addEventListener("keydown", (e) => {
   const blockedKeys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];

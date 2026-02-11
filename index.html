@@ -32,7 +32,7 @@
           </div>
 
           <div class="dropdown-container">
-            <div class="dropdown">
+            <div class="dropdown" id="difficulty-dropdown" style="display: none">
               <button class="dropdown-btn mobile">Easy</button>
               <div class="dropdown-content">
                 <p class="difficulty-text desktop">Difficulty:</p>
@@ -42,9 +42,19 @@
               </div>
             </div>
 
+            <div class="dropdown" id="options-dropdown">
+              <button class="dropdown-btn mobile">Options</button>
+              <div class="dropdown-content">
+                <p class="options-text desktop">Options:</p>
+                <label
+                  ><input type="checkbox" name="options" id="punctuation" />Punctuation</label
+                >
+                <label><input type="checkbox" name="options" id="numbers" />Numbers</label>
+              </div>
+            </div>
+
             <div class="dropdown">
               <button class="dropdown-btn mobile">Timed</button>
-
               <div class="dropdown-content">
                 <p class="mode-text desktop">Mode:</p>
                 <label><input type="radio" name="mode" value="timed" checked />Timed</label>
@@ -66,7 +76,11 @@
           </div>
 
           <div class="test-over-overlay">
-            <img class="overlay-img" src="./assets/images/icon-completed.svg" alt="completed icon" />
+            <img
+              class="overlay-img"
+              src="./assets/images/icon-completed.svg"
+              alt="completed icon"
+            />
             <div class="test-over-text_stats-container">
               <div class="test-over-text">
                 <h1 class="test-over-h"></h1>

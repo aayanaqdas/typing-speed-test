@@ -202,13 +202,18 @@ main {
   border-bottom: 1px solid var(--neutral-400);
 }
 
-.dropdown-content input[type="radio"] {
+.dropdown-content input[type="radio"],
+input[type="checkbox"] {
   appearance: none;
 }
 
 .dropdown-content label:has(input[type="radio"]:checked) {
   background-color: var(--blue-400);
   border-bottom: none;
+}
+
+.dropdown-content label:has(input[type="checkbox"]:checked) {
+  background-color: var(--blue-400);
 }
 
 .test-container {
@@ -443,14 +448,6 @@ main {
 }
 
 .restart-wrapper {
-  /* display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  padding: clamp(1rem, 2vw, 1.5rem) 0;
-  margin-top: clamp(1rem, 3vw, 2rem);
-  border-top: 2px solid var(--neutral-800); */
-
   padding: clamp(1rem, 2vw, 1.5rem) 0;
   margin-top: clamp(1rem, 3vw, 2rem);
 }
@@ -461,10 +458,6 @@ main {
   border: none;
   cursor: pointer;
 }
-
-/* #restart-btn:hover {
-  background-color: var(--neutral-500);
-} */
 
 #restart-btn::after {
   content: url("../assets/images/icon-restart.svg");
@@ -551,7 +544,8 @@ main {
   }
 
   .difficulty-text,
-  .mode-text {
+  .mode-text,
+  .options-text {
     font-size: clamp(0.875rem, 1.2vw, 1rem);
     color: var(--neutral-400);
     white-space: nowrap;
@@ -574,7 +568,7 @@ main {
     color: var(--blue-400);
   }
 
-  .dropdown-content label:has(input[type="radio"]:checked) {
+  .dropdown-content label:has(input[type="radio"]:checked, input[type="checkbox"]:checked) {
     background-color: transparent;
     border: 1px solid var(--blue-400);
     color: var(--blue-400);
