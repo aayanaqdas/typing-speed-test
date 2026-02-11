@@ -469,12 +469,14 @@ dropDownBtns.forEach((btn) => {
 
         if (!punctChecked && !numbersChecked) {
           btn.textContent = "Options";
+          dropDownContent.classList.toggle("show");
         } else if (punctChecked && !numbersChecked) {
           btn.textContent = "Punctuation";
         } else if (!punctChecked && numbersChecked) {
           btn.textContent = "Numbers";
         } else {
           btn.textContent = "Punct + Num";
+          dropDownContent.classList.toggle("show");
         }
       }
     });
